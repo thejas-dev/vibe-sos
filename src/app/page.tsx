@@ -10,17 +10,20 @@ import { SOSSlider } from '@/components/sos-slider';
 import { StatusCard } from '@/components/status-card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Shield, MapPin, Siren, Video, Mic, AlertTriangle, CheckCircle, FileLock } from 'lucide-react';
+import { Shield, MapPin, Siren, Video, Radio, AlertTriangle, FileLock } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export default function Home() {
   const [isSosActive, setIsSosActive] = useState(false);
   const [log, setLog] = useState<string[]>([]);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [threatResult, setThreatResult] = useState<DetectAudioThreatOutput | null>(null);
+  const [streamStatus, setStreamStatus] = useState('Inactive');
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioRecorderRef = useRef<MediaRecorder | null>(null);
   const locationWatcherId = useRef<number | null>(null);
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const logRef = useRef<string[]>([]);
   const { toast } = useToast();
 
@@ -45,9 +48,14 @@ export default function Home() {
     if (locationWatcherId.current !== null) {
       navigator.geolocation.clearWatch(locationWatcherId.current);
     }
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+    }
     audioRecorderRef.current = null;
     mediaStreamRef.current = null;
     locationWatcherId.current = null;
+    setStreamStatus('Inactive');
   }, []);
 
   const handleDeactivateSOS = useCallback(() => {
@@ -55,6 +63,65 @@ export default function Home() {
     addLog('SOS Deactivated by user.');
     cleanup();
   }, [addLog, cleanup]);
+
+  const startWebRTCStream = useCallback(async (stream: MediaStream) => {
+    addLog('Attempting to start live stream to emergency services...');
+    setStreamStatus('Connecting...');
+    try {
+      // Using a public STUN server. In a real app, you'd need TURN servers for NAT traversal.
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      });
+      peerConnectionRef.current = pc;
+
+      // Update stream status based on connection state changes
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState) {
+          const status = pc.connectionState.charAt(0).toUpperCase() + pc.connectionState.slice(1);
+          setStreamStatus(status);
+          if (status !== 'Connecting') {
+            addLog(`Live stream status: ${status}`);
+          }
+        }
+      };
+
+      stream.getTracks().forEach(track => {
+        pc.addTrack(track, stream);
+      });
+
+      // This part is for signaling. As there's no receiver, it will attempt to connect and likely timeout.
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          // In a real app, this candidate is sent to the remote peer via a signaling server.
+          console.info('Simulating sending ICE candidate to remote peer.');
+          fetch('/api/webrtc-signal', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ type: 'ice-candidate', candidate: event.candidate, user_id: 'anonymous' })
+          }).catch(err => console.info('Mock API call for WebRTC signaling (ICE). This is expected to fail.'));
+        }
+      };
+      
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      // In a real app, this offer (SDP) is sent to the remote peer.
+      console.info('Simulating sending offer to remote peer.');
+      fetch('/api/webrtc-signal', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ type: 'offer', sdp: offer.sdp, user_id: 'anonymous' })
+      }).catch(err => console.info('Mock API call for WebRTC signaling (Offer). This is expected to fail.'));
+
+      addLog('WebRTC live stream initiated. Awaiting connection.');
+      
+    } catch (error) {
+      console.error('WebRTC setup failed:', error);
+      addLog('WebRTC stream could not be established.');
+      setStreamStatus('Failed');
+      // No toast error as requested.
+    }
+  }, [addLog]);
 
   const handleActivateSOS = useCallback(async () => {
     addLog('SOS activation sequence initiated...');
@@ -68,6 +135,9 @@ export default function Home() {
       }
       addLog('Camera and microphone access granted.');
       setIsSosActive(true);
+
+      // Start live streaming via WebRTC
+      await startWebRTCStream(stream);
 
       // Start geolocation tracking
       locationWatcherId.current = navigator.geolocation.watchPosition(
@@ -154,7 +224,7 @@ export default function Home() {
       });
       cleanup();
     }
-  }, [isSosActive, addLog, toast, cleanup, location?.lat, location?.lng]);
+  }, [isSosActive, addLog, toast, cleanup, location?.lat, location?.lng, startWebRTCStream]);
   
   useEffect(() => {
     return () => cleanup();
@@ -237,6 +307,16 @@ export default function Home() {
 
             <StatusCard title="Geolocation" icon={<MapPin size={20} />}>
               {isSosActive && location ? `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}` : 'Inactive'}
+            </StatusCard>
+
+            <StatusCard title="Live Stream to Police" icon={<Radio size={20} />}>
+              <div className={cn({
+                  'text-green-500': streamStatus === 'Connected',
+                  'text-yellow-500': ['Connecting', 'Checking'].includes(streamStatus),
+                  'text-red-500': ['Failed', 'Disconnected', 'Closed'].includes(streamStatus),
+              })}>
+                  {streamStatus}
+              </div>
             </StatusCard>
 
             <StatusCard title="AI Threat Analysis" icon={<Siren size={20} />}>
