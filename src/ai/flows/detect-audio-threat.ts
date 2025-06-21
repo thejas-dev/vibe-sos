@@ -41,7 +41,11 @@ const detectAudioThreatPrompt = ai.definePrompt({
   name: 'detectAudioThreatPrompt',
   input: {schema: DetectAudioThreatInputSchema},
   output: {schema: DetectAudioThreatOutputSchema},
-  prompt: `You are an AI expert in threat detection. Analyze the provided audio stream and identify potential threats based on keywords, sound patterns, and context. \n\nDetermine if a threat is present and extract relevant keywords. Provide a confidence score for the detection. Audio stream: {{media url=audioDataUri}}`,
+  prompt: `You are an AI expert in threat detection. Analyze the provided audio stream and identify potential threats based on keywords, sound patterns, and context. 
+  
+Determine if a threat is present and extract relevant keywords. Provide a confidence score for the detection. If no specific threat is detected, the audio is silent, or the audio is unclear, you MUST return a response with 'threatDetected' as false, an empty 'threatKeywords' array, and a 'confidenceScore' of 0.
+
+Audio stream: {{media url=audioDataUri}}`,
 });
 
 const detectAudioThreatFlow = ai.defineFlow(
@@ -52,6 +56,15 @@ const detectAudioThreatFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await detectAudioThreatPrompt(input);
-    return output!;
+    if (!output) {
+      // If the model fails to produce a valid output, we'll return a default "no threat" response
+      // to make the flow more resilient against model flakiness.
+      return {
+        threatDetected: false,
+        threatKeywords: [],
+        confidenceScore: 0,
+      };
+    }
+    return output;
   }
 );
