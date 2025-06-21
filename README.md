@@ -1,5 +1,22 @@
 # SlideSafe Web: Intelligent Emergency Response
 
+
+<a href="https://studio.firebase.google.com/import?url=https%3A%2F%2Fgithub.com%2Fthejas-dev%2Fvibe-sos">
+  <picture>
+    <source
+      media="(prefers-color-scheme: dark)"
+      srcset="https://cdn.firebasestudio.dev/btn/continue_dark_32.svg">
+    <source
+      media="(prefers-color-scheme: light)"
+      srcset="https://cdn.firebasestudio.dev/btn/continue_light_32.svg">
+    <img
+      height="32"
+      alt="Continue in Firebase Studio"
+      src="https://cdn.firebasestudio.dev/btn/continue_blue_32.svg">
+  </picture>
+</a>
+
+
 ### Project Summary
 
 SlideSafe Web is a proof-of-concept emergency reporting application designed to provide a discreet and powerful way to request help in critical situations. Our core idea is to transform a standard web browser into an intelligent safety tool that can not only alert authorities but also analyze the user's environment for threats in real-time. This project demonstrates how modern web technologies and AI can be combined to create a responsive and intelligent personal safety system, focusing on front-end capabilities with a simulated backend for core emergency functions.
@@ -39,18 +56,3 @@ This project showcases the powerful front-end capabilities of a modern safety ap
 *   A robust signaling server to establish and manage WebRTC connections with emergency dispatch centers.
 *   Secure endpoints to receive, process, and store evidence and alert data.
 *   Integration with actual emergency services and contact management systems.
-
-<a href="https://studio.firebase.google.com/import?url=https%3A%2F%2Fgithub.com%2Fthejas-dev%2Fvibe-sos">
-  <picture>
-    <source
-      media="(prefers-color-scheme: dark)"
-      srcset="https://cdn.firebasestudio.dev/btn/continue_dark_32.svg">
-    <source
-      media="(prefers-color-scheme: light)"
-      srcset="https://cdn.firebasestudio.dev/btn/continue_light_32.svg">
-    <img
-      height="32"
-      alt="Continue in Firebase Studio"
-      src="https://cdn.firebasestudio.dev/btn/continue_blue_32.svg">
-  </picture>
-</a>
