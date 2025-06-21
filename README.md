@@ -1,6 +1,5 @@
 # SlideSafe Web: Intelligent Emergency Response
 
-<img src="https://placehold.co/1200x630.png" alt="SlideSafe Web Cover Image" data-ai-hint="safety technology">
 
 <a href="https://studio.firebase.google.com/import?url=https%3A%2F%2Fgithub.com%2Fthejas-dev%2Fvibe-sos">
   <picture>
