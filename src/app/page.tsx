@@ -21,7 +21,12 @@ export default function Home() {
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioRecorderRef = useRef<MediaRecorder | null>(null);
   const locationWatcherId = useRef<number | null>(null);
+  const logRef = useRef<string[]>([]);
   const { toast } = useToast();
+
+  useEffect(() => {
+    logRef.current = log;
+  }, [log]);
 
   const addLog = useCallback((message: string) => {
     setLog((prev) => [...prev, `${new Date().toLocaleTimeString()}: ${message}`]);
@@ -98,8 +103,22 @@ export default function Home() {
             addLog(`AI analysis complete. Confidence: ${Math.round(result.confidenceScore * 100)}%`);
             if (result.threatDetected) {
               addLog(`Threat detected: ${result.threatKeywords.join(', ')}`);
-              // Simulate alert
-              addLog('High-priority alert dispatched to authorities.');
+              addLog('High-priority alert dispatched to authorities with full log.');
+
+              // Send a detailed alert with the threat info and the full log
+              fetch('/api/alert', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                  lat: location?.lat,
+                  lng: location?.lng,
+                  timestamp: new Date().toISOString(),
+                  user_id: 'anonymous',
+                  status: 'THREAT_DETECTED',
+                  threatKeywords: result.threatKeywords,
+                  log: logRef.current, // Send the complete log history
+                })
+              }).catch(err => console.info('Mock API call for threat detection.'));
             }
           } catch (e) {
             addLog('AI analysis failed.');
