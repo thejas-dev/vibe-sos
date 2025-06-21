@@ -14,55 +14,82 @@ export function SOSSlider({ onActivate }: SOSSliderProps) {
   const sliderRef = useRef<HTMLDivElement>(null);
   const thumbRef = useRef<HTMLDivElement>(null);
 
+  // Use refs to hold the latest values for our event handlers to avoid stale closures.
+  const onActivateRef = useRef(onActivate);
+  const sliderPositionRef = useRef(sliderPosition);
+  const isDraggingRef = useRef(isDragging);
+
+  // Keep refs updated with the latest values from props and state.
+  useEffect(() => {
+    onActivateRef.current = onActivate;
+  }, [onActivate]);
+
+  useEffect(() => {
+    sliderPositionRef.current = sliderPosition;
+  }, [sliderPosition]);
+
+  useEffect(() => {
+    isDraggingRef.current = isDragging;
+  }, [isDragging]);
+
+
   const handleInteractionStart = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault(); // Prevents text selection during drag
     setIsDragging(true);
   };
 
-  const handleInteractionEnd = () => {
-    if (!isDragging) return;
-    setIsDragging(false);
+  useEffect(() => {
+    const handleInteractionMove = (e: MouseEvent | TouchEvent) => {
+      // We only want to move if dragging. Check ref instead of state to avoid stale closure.
+      if (!isDraggingRef.current || !sliderRef.current || !thumbRef.current) return;
 
-    if (sliderRef.current && thumbRef.current) {
+      const sliderRect = sliderRef.current.getBoundingClientRect();
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+      const newPosition = clientX - sliderRect.left - thumbRef.current.offsetWidth / 2;
+
       const sliderWidth = sliderRef.current.offsetWidth;
       const thumbWidth = thumbRef.current.offsetWidth;
-      const activationThreshold = sliderWidth - thumbWidth - 5; // 5px tolerance
+      const maxPosition = sliderWidth - thumbWidth;
 
-      if (sliderPosition >= activationThreshold) {
-        onActivate();
+      setSliderPosition(Math.max(0, Math.min(newPosition, maxPosition)));
+    };
+
+    const handleInteractionEnd = () => {
+      // Check ref instead of state to avoid stale closure.
+      if (!isDraggingRef.current) return;
+      
+      if (sliderRef.current && thumbRef.current) {
+        const sliderWidth = sliderRef.current.offsetWidth;
+        const thumbWidth = thumbRef.current.offsetWidth;
+        const activationThreshold = sliderWidth - thumbWidth - 5;
+
+        // Use the ref to get the latest slider position.
+        if (sliderPositionRef.current >= activationThreshold) {
+          onActivateRef.current();
+        }
       }
-    }
-    // Snap back animation is handled by CSS transition
-    setSliderPosition(0);
-  };
+      
+      // Reset state, which will cause a re-render.
+      setIsDragging(false);
+      setSliderPosition(0);
+    };
 
-  const handleInteractionMove = (e: MouseEvent | TouchEvent) => {
-    if (!isDragging || !sliderRef.current || !thumbRef.current) return;
-
-    const sliderRect = sliderRef.current.getBoundingClientRect();
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const newPosition = clientX - sliderRect.left - thumbRef.current.offsetWidth / 2;
-
-    const sliderWidth = sliderRef.current.offsetWidth;
-    const thumbWidth = thumbRef.current.offsetWidth;
-    const maxPosition = sliderWidth - thumbWidth;
-
-    setSliderPosition(Math.max(0, Math.min(newPosition, maxPosition)));
-  };
-
-  useEffect(() => {
+    // Add listeners to the document so that the drag continues even if the
+    // cursor leaves the slider area. These listeners are only attached once.
     document.addEventListener('mousemove', handleInteractionMove);
     document.addEventListener('mouseup', handleInteractionEnd);
     document.addEventListener('touchmove', handleInteractionMove);
     document.addEventListener('touchend', handleInteractionEnd);
+    
 
     return () => {
+      // Cleanup listeners when the component unmounts.
       document.removeEventListener('mousemove', handleInteractionMove);
       document.removeEventListener('mouseup', handleInteractionEnd);
       document.removeEventListener('touchmove', handleInteractionMove);
       document.removeEventListener('touchend', handleInteractionEnd);
     };
-     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDragging]);
+  }, []); // Empty dependency array means this effect runs only once.
 
   const getTextOpacity = () => {
     return Math.max(0, 1 - (sliderPosition / 100) * 2);
